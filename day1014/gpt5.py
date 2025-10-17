@@ -1,12 +1,13 @@
 import os
 from openai import OpenAI
 import re
+import openai
 
 
 # OpenAI API 클라이언트 초기화
 # YOUR_API_KEY 대신 실제 API 키를 입력하거나 환경 변수로 설정해야 합니다.
 # 예: os.environ.get("OPENAI_API_KEY")
-client = OpenAI(api_key="openai_api_key")
+client = OpenAI(api_key="OPENAI_API_KEY")
 
 # 테스트용입니다
 # GPT에게 요청을 보내고 응답을 받는 함수
@@ -44,12 +45,21 @@ def get_gpt_response(situation_description, user_input_text="",
         )
 
         return chat_completion.choices[0].message.content.strip()
+    except openai.error.AuthenticationError:
+        print(f"API 인증 오류 발생. 키를 확인해주세요.")
+        return "API 인증 오류가 발생했어요. 키를 확인해주세요."
+    
+    except openai.error.RateLimitError:
+        print(f"서버 요청이 많아요. 잠시 후 다시 시도해주세요.")
+        return "서버 요청이 많아요. 잠시 후 다시 시도해주세요."
+
     except Exception as e:
         print(f"GPT 응답을 가져오는 중 오류 발생: {e}")
         return "GPT가 잠시 생각에 잠겼나 봐. 다시 시도해줄래?"
 
 end_keywords = ["끝내","끝낼","여기까지" ]
 genre_keywords = ["장르", "액션", "로맨스", "코미디", "스릴러", "공포", "SF"]
+genre_vowel = ["액션", "코미디", "드라마", "로맨스", "스릴러", "공포", "범죄", "SF", "공상과학", "사이버펑크", "스팀펑크", "판타지", "다큐멘터리"]
 actor_keywords = ["배우", "출연", "주연", "출연진", "배우로", "연기한"]
 emotion_keywords = ["감정", "감성", "기분"]
 reset_keywords = ["처음", "맨앞", "리셋", "맨 앞"]
@@ -58,7 +68,7 @@ want_keywords = ["원하는 것", "원하는", "원해", "원합니다", "원해
 year_keywords = ["년도", "옛날", "최신", "년"]
 satisfaction_keywords = ["만족", "좋았", "좋았다", "좋아요", "끝내", "짱", "최고"]
 dissatisfaction_keywords = ["불", "아니", "불만족", "불만", "최악", "별로", "내키지", "아쉬", "아쉽", "실망"]
-impor_keywords = ["정보", "영화 정보", "있어", "?"]
+info_keywords = ["정보", "영화 정보", "있어", "?"]
 actor_names = [
     "송강호", "마동석", "전도연", "이병헌", "공유", "조진웅",
     "톰 크루즈", "레오나르도 디카프리오", "스칼렛 요한슨",
@@ -81,7 +91,7 @@ def main_menu():
 
         print("\n감정 측정 중 예외.")
 
-        situation = "감정을 통한 영화 추천이 아니라 다른 방식을 원하는 것 같아. 잠시 추천을 멈추고 장르, 배우, 년도, 감독 또는 영화 정보가 직접적으로 필요한지 물어봐봐."
+        situation = "감정을 통한 영화 추천이 아니라 다른 방식을 원하는 것 같아. 잠시 추천을 멈추고 장르나 배우, 감독, 또는 영화 정보 중에서 필요한 정보를 고르게 해보자."
         response = get_gpt_response(situation)
         user_input = input(response)
 
@@ -107,9 +117,9 @@ def main_menu():
             situation = "사용자가 감정이 아닌 감독을 기반으로 영화를 추천 받고 싶은 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
-            select()
+            director()
         
-        elif any(k in user_input for k in impor_keywords):
+        elif any(k in user_input for k in info_keywords):
             situation = "사용자가 영화 정보가 있는지 물어보고 있는 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)   
@@ -124,10 +134,9 @@ def main_menu():
 
 def genre(): # 장르
     while True:
-        user_input = input("")
+        user_input = input(": ")
 
         if any(k in user_input for k in year_keywords):
-            # GPT를 사용하여 user_input에 genre_keywords가 들어 있으면 반응 
             situation = "사용자가 장르가 아닌 년도를 기준으로 영화를 고르고 싶어하는 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
@@ -151,7 +160,7 @@ def genre(): # 장르
             print(response)
             return
 
-        elif any(k in user_input for k in want_keywords) or genre_keywords:
+        elif any(k in user_input for k in want_keywords) or any(k in user_input for k in genre_vowel):
             situation = "사용자가 지시한 사항에 맞춰 영화를 추천해줘."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
@@ -161,9 +170,9 @@ def genre(): # 장르
             situation = "사용자가 감정이 아닌 감독을 기반으로 영화를 추천 받고 싶은 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
-            select()
+            director()
 
-        elif any(k in user_input for k in impor_keywords):
+        elif any(k in user_input for k in info_keywords):
             situation = "사용자가 영화 정보가 있는지 물어보고 있는 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)   
@@ -199,7 +208,7 @@ def actor(): # 배우
             situation = "배우가 아닌 장르를 기준으로 영화를 택하려고 하나 봐."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
-            actor()
+            genre()
 
         elif any(k in user_input for k in emotion_keywords):
             situation = "다시 감정을 기준으로 영화를 고르려고 하나 봐."
@@ -219,7 +228,7 @@ def actor(): # 배우
             print(response)
             survey()
 
-        elif any(k in user_input for k in impor_keywords):
+        elif any(k in user_input for k in info_keywords):
             situation = "사용자가 영화 정보가 있는지 물어보고 있는 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)   
@@ -229,7 +238,7 @@ def actor(): # 배우
             situation = "사용자가 감정이 아닌 감독을 기반으로 영화를 추천 받고 싶은 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
-            select()
+            director()
 
         else:
             situation = "사용자가 기획과 다르게 엉뚱한 요구를 했나 봐. 최대한 다시 영화 추천 하는 쪽으로 대화를 유도해 봐."
@@ -276,9 +285,9 @@ def wrong_answer(): # 예상 밖의 답변
             situation = "사용자가 감정이 아닌 감독을 기반으로 영화를 추천 받고 싶은 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
-            select()
+            director()
 
-        elif any(k in user_input for k in impor_keywords):
+        elif any(k in user_input for k in info_keywords):
             situation = "사용자가 영화 정보가 있는지 물어보고 있는 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)   
@@ -288,11 +297,11 @@ def wrong_answer(): # 예상 밖의 답변
             situation = "사용자가 기획과 다르게 엉뚱한 요구를 했나 봐. 최대한 다시 영화 추천 하는 쪽으로 대화를 유도해 봐."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
-            wrong_answer()
+            continue
 
 def emotion(): # 감정 롤백
     while True:
-        user_input = input("")
+        user_input = input(": ")
 
         if any(k in user_input for k in genre_keywords):
             situation = "사용자가 다시 장르를 기반으로 영화를 추천 받고 싶나 봐."
@@ -318,7 +327,7 @@ def emotion(): # 감정 롤백
             print(response)
             survey()
 
-        elif any(k in user_input for k in impor_keywords):
+        elif any(k in user_input for k in info_keywords):
             situation = "사용자가 영화 정보가 있는지 물어보고 있는 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)   
@@ -328,7 +337,7 @@ def emotion(): # 감정 롤백
             situation = "사용자가 감정이 아닌 감독을 기반으로 영화를 추천 받고 싶은 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
-            select()
+            director()
             
         else:
             situation = "사용자가 기획과 다르게 엉뚱한 요구를 했나 봐. 최대한 다시 영화 추천 하는 쪽으로 대화를 유도해 봐."
@@ -375,7 +384,7 @@ def push(): # 추가적인 추천
         situation = "사용자에게 추가적인 추천이 필요한지 물어봐줘."
         response = get_gpt_response(situation)
         print(response)
-        user_input = input("")
+        user_input = input(": ")
         sug = suggestion(user_input)
 
         if sug == "yes":
@@ -398,7 +407,7 @@ def push(): # 추가적인 추천
 
 def year(): # 년도
 
-    user_input = input("1900~2000, 년, 년도를 붙인다. : ")
+    user_input = input(": ")
 
     has_year_number = re.search(r'\b(19[0-9]{2}|20[0-9]{2})\b', user_input)
 
@@ -426,7 +435,7 @@ def year(): # 년도
         print(response)
         return
     
-    elif any(k in user_input for k in impor_keywords):
+    elif any(k in user_input for k in info_keywords):
             situation = "사용자가 영화 정보가 있는지 물어보고 있는 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)   
@@ -445,14 +454,14 @@ def year(): # 년도
 
 def end(): # 종료
         global result
-        user_input = input("마무리: ")
+        user_input = input(": ")
         situation = "적절한 마무리 인사로 대응해줘. 이제 영화 추천은 그만하고, 작별 인사만 해줘."
         response = get_gpt_response(situation, user_input_text=user_input)
         print(response)
         result = "exit"
 
 def addition(): # 추가 추천
-        user_input = input("추가 추천 방향성: ")
+        user_input = input(": ")
 
         if any(k in user_input for k in reset_keywords):
             situation = "사용자가 처음부터 다시 천천히 영화를 추천 받고 싶나 봐."
@@ -469,8 +478,8 @@ def addition(): # 추가 추천
 def directors_names(text):
     return any(name in text for name in director_names)
 
-def select(): # 추천 선택 시 선택 사항
-        user_input = input("")
+def director(): # 감독
+        user_input = input(": ")
 
         if any(k in user_input for k in want_keywords) or directors_names(user_input):
             situation = "사용자의 지시에 맞춰 영화를 추천해줘."
@@ -496,7 +505,7 @@ def select(): # 추천 선택 시 선택 사항
             print(response)
             emotion()
         
-        elif any(k in user_input for k in impor_keywords):
+        elif any(k in user_input for k in info_keywords):
             situation = "사용자가 영화 정보가 있는지 물어보고 있는 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)   
@@ -515,7 +524,7 @@ def select(): # 추천 선택 시 선택 사항
             wrong_answer()
     
 def information(): # 영화 정보 요청 시
-        user_input = input("정보: ")
+        user_input = input(": ")
 
         if user_input:
             situation = "사용자가 요청한 정보를 가져와서 이야기해줘. 추가로 궁금한 점이 있는지 물어봐줘."
@@ -526,7 +535,7 @@ def information(): # 영화 정보 요청 시
 def information_since(): # 영화 정보 전달 이후 선택지
         situation = "사용자가 원하는 정보를 얻었어. 그러니 잠시 추천을 멈추고 다음에 할 선택을 물어봐 줘."
         response = get_gpt_response(situation)
-        user_input = input(response)
+        user_input = input(f"{response}\n: ")
 
         if any(k in user_input for k in genre_keywords):
             situation = "사용자가 감정이 아닌 장르를 기반으로 영화를 추천 받고 싶은 것 같아."
@@ -550,9 +559,9 @@ def information_since(): # 영화 정보 전달 이후 선택지
             situation = "사용자가 감정이 아닌 감독을 기반으로 영화를 추천 받고 싶은 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)
-            select()
+            director()
         
-        elif any(k in user_input for k in impor_keywords):
+        elif any(k in user_input for k in info_keywords):
             situation = "사용자가 추가적인 영화 정보가 있는지 물어보고 있는 것 같아."
             response = get_gpt_response(situation, user_input_text=user_input)
             print(response)   
