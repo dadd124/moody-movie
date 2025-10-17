@@ -8,6 +8,7 @@ import re
 # 예: os.environ.get("OPENAI_API_KEY")
 client = OpenAI(api_key="OPENAI_API_KEY")
 
+# 테스트용입니다
 # GPT에게 요청을 보내고 응답을 받는 함수
 def get_gpt_response(situation_description, user_input_text="",
                       persona_description="너는 영화를 추천해주는 챗봇이야. 기본적으로는 감정을 기반으로 추천해주지만,"
